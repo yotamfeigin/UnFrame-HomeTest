@@ -7,6 +7,11 @@
       <i v-else class="fa-solid fa-user"></i>
     </div>
 
+    <!-- Show the user's name under the logo if connected -->
+    <div v-if="isAuthenticated && userName" class="username">
+      {{ userName }}
+    </div>
+
     <ul>
       <li>
         <router-link to="/">
@@ -37,15 +42,26 @@ import axios from "axios";
 export default {
   setup() {
     const isAuthenticated = ref(false);
+    const userName = ref("");
 
     onMounted(async () => {
       try {
+        // Check authentication status
         const { data } = await axios.get("http://localhost:3000/auth/status", {
           withCredentials: true,
         });
         isAuthenticated.value = data.authenticated;
+        // If authenticated, attempt to fetch the user's display name from Drive
+        if (data.authenticated) {
+          // This assumes your backend has an endpoint that calls the Drive API's "about" resource
+          const aboutResponse = await axios.get("http://localhost:3000/drive/about", {
+            withCredentials: true,
+          });
+          // Expected response format: { user: { displayName: "John Doe", ... } }
+          userName.value = aboutResponse.data.user.displayName;
+        }
       } catch (error) {
-        console.error("Error checking auth:", error);
+        console.error("Error checking auth or fetching user name:", error);
       }
     });
 
@@ -57,13 +73,12 @@ export default {
       window.location.href = "/";
     };
 
-    return { isAuthenticated, logout };
+    return { isAuthenticated, userName, logout };
   },
 };
 </script>
 
 <style>
-/* Sidebar Container */
 /* Sidebar Container */
 .sidebar {
   z-index: 1000;
@@ -91,12 +106,24 @@ export default {
 .logo {
   width: 50px;
   height: 50px;
-  margin-bottom: 20px;
+  margin-bottom: 5px;
   font-size: 2rem;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Username styling */
+.username {
+  color: #fff;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
 }
 
 /* Nav Items */
@@ -109,7 +136,11 @@ ul {
 
 li {
   width: 100%;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
 }
+
 .sidebar a,
 .sidebar button {
   margin: auto;
@@ -128,6 +159,7 @@ li {
   transition: background 0.3s, gap 0.3s, width 0.3s;
   width: auto; /* Let link shrink to fit icon when collapsed */
 }
+
 /* Hover States */
 .sidebar a:hover,
 .sidebar button:hover {
@@ -139,7 +171,6 @@ li {
   font-size: 1.2rem;
   margin-right: 0; /* We'll manage spacing with the text reveal below */
   transition: margin-right 0.3s;
-  /* No need for text-align since we're centering everything as a group */
 }
 
 /* Ensure the span behaves like a block for width transitions */
@@ -157,5 +188,4 @@ li {
   max-width: 200px; /* adjust to fit your text */
   margin-left: 10px;
 }
-
 </style>

@@ -72,6 +72,18 @@ async function ensureAuthenticated(req, res, next) {
   }
 }
 
+// ✅ Fetch Google Drive About Information (User Data)
+app.get("/drive/about", ensureAuthenticated, async (req, res) => {
+  try {
+    const response = await req.drive.about.get({
+      fields: "user(displayName)",
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error fetching Drive about:", error.response?.data || error.message);
+    res.status(500).send("Error fetching Drive about.");
+  }
+});
 
 // ✅ Google OAuth Login
 app.get("/auth/google", (req, res) => {

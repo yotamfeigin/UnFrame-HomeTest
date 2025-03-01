@@ -29,8 +29,10 @@
       </div>
     </transition-group>
 
-    <!-- FLOATING CHAT BUTTON -->
-    <div class="chat-fab" @click="toggleChat">💬</div>
+    <!-- FLOATING CHAT BUTTON with reactive styling -->
+    <div class="chat-fab" :class="{ active: chatOpen }" @click="toggleChat">
+      💬
+    </div>
 
     <!-- SLIDE TRANSITION FOR CHAT -->
     <transition name="slide">
@@ -77,21 +79,16 @@ export default {
 
     onMounted(async () => {
       try {
-        // 1) Check if user is authenticated
         const { data } = await axios.get("http://localhost:3000/auth/status", {
           withCredentials: true,
         });
         if (!data.authenticated) {
           return router.push("/");
         }
-
-        // 2) Fetch files if authenticated
         const fileRes = await axios.get("http://localhost:3000/files", {
           withCredentials: true,
         });
         const fetchedFiles = fileRes.data;
-
-        // Delay updating the files so the transition-group can animate the entrance
         setTimeout(() => {
           files.value = fetchedFiles;
         }, 50);
@@ -99,14 +96,12 @@ export default {
         console.error("Error checking auth or fetching files:", error);
         router.push("/");
       } finally {
-        // Small delay before hiding the loader
         setTimeout(() => {
           isLoading.value = false;
         }, 100);
       }
     });
 
-    // FORMATTERS
     const formatSize = (bytes) => {
       if (!bytes) return "Unknown";
       const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -116,7 +111,6 @@ export default {
 
     const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
 
-    // CRUD methods
     const viewFile = (fileId) => {
       window.open(`https://drive.google.com/file/d/${fileId}/view`, "_blank");
     };
@@ -124,7 +118,6 @@ export default {
     const editFile = async (fileId, oldName) => {
       const newName = prompt("Enter new file name:", oldName);
       if (!newName || newName === oldName) return;
-
       try {
         await axios.patch(
           `http://localhost:3000/files/${fileId}`,
@@ -140,7 +133,6 @@ export default {
 
     const deleteFile = async (fileId) => {
       if (!confirm("Are you sure you want to delete this file?")) return;
-
       try {
         await axios.delete(`http://localhost:3000/files/${fileId}`, {
           withCredentials: true,
@@ -152,7 +144,6 @@ export default {
       }
     };
 
-    // AI CHAT
     const toggleChat = () => {
       chatOpen.value = !chatOpen.value;
     };
@@ -162,7 +153,6 @@ export default {
       messages.value.push({ role: "user", content: newMessage.value });
       const userQuery = newMessage.value;
       newMessage.value = "";
-
       try {
         const { data } = await axios.post(
           "http://localhost:3000/chat",
@@ -214,11 +204,11 @@ export default {
   height: 200px;
 }
 .loading-container img {
-  width: 80px; /* Smaller loading GIF */
+  width: 80px;
   height: auto;
 }
 
-/* FILE GRID (3 in a row) */
+/* FILE GRID */
 .file-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -242,7 +232,6 @@ export default {
 .file-card:hover {
   transform: translateY(-5px);
 }
-
 .file-details h3 {
   font-size: 1.2rem;
   margin: 0;
@@ -251,7 +240,6 @@ export default {
   font-size: 1rem;
   color: #666;
 }
-
 .file-actions {
   display: flex;
   gap: 0.5rem;
@@ -282,34 +270,24 @@ export default {
 .file-actions button:nth-child(3):hover {
   background: #c82333;
 }
-/* FILE FADE-IN APPEAR TRANSITION */
-.file-fade-appear-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.file-fade-appear-active {
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-.file-fade-appear-to {
-  opacity: 1;
-  transform: translateY(0);
-}
 
-/* Keep the regular enter transitions if needed */
+/* FILE FADE-IN TRANSITIONS */
+.file-fade-appear-from,
 .file-fade-enter-from {
   opacity: 0;
   transform: translateY(10px);
 }
+.file-fade-appear-active,
 .file-fade-enter-active {
   transition: opacity 0.5s ease, transform 0.5s ease;
 }
+.file-fade-appear-to,
 .file-fade-enter-to {
   opacity: 1;
   transform: translateY(0);
 }
 
-
-/* FAB BUTTON */
+/* FLOATING CHAT BUTTON */
 .chat-fab {
   position: fixed;
   bottom: 20px;
@@ -325,10 +303,14 @@ export default {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  transition: 0.3s;
+  transition: background 0.3s, transform 0.3s;
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
 }
-.chat-fab:hover {
-  transform: scale(1.1);
+.chat-fab.active {
+  background: linear-gradient(135deg, #007bff, #00c6ff);
+  transform: rotate(45deg) scale(1.1);
 }
 
 /* SLIDE TRANSITION for Chat */
@@ -354,26 +336,29 @@ export default {
 /* CHAT CONTAINER */
 .chat-container {
   position: fixed;
-  top: 0;
-  right: 0;
-  width: 320px;
-  height: 100vh;
+  bottom: 80px;
+  right: 20px;
+  width: 350px;
+  max-height: 450px;
   background: #fff;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
 }
 
 /* CHAT HEADER */
 .chat-container header {
-  background: #ff9100;
+  background: linear-gradient(135deg, #007bff, #00c6ff);
   color: #fff;
-  padding: 1rem;
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 .chat-container header h2 {
+  font-size: 1.1rem;
   margin: 0;
 }
 .close-btn {
@@ -387,50 +372,59 @@ export default {
 /* CHAT MESSAGES */
 .chat-messages {
   flex-grow: 1;
-  padding: 1rem;
+  padding: 16px;
   overflow-y: auto;
+  background: #f7f7f7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .chat-bubble {
-  display: inline-block;
-  margin: 0.5rem 0;
-  padding: 0.6rem 1rem;
-  border-radius: 10px;
-  max-width: 70%;
-  clear: both;
+  padding: 10px 14px;
+  border-radius: 20px;
+  margin-bottom: 8px;
+  max-width: 75%;
+  word-wrap: break-word;
 }
 .chat-bubble.user {
-  background: #e5e5e5;
-  float: right;
-  text-align: right;
+  background: #dcf8c6;
+  align-self: flex-end;
 }
 .chat-bubble.ai {
-  background: #ffe0b2;
-  float: left;
-  text-align: left;
+  background: #fff;
+  align-self: flex-start;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* CHAT FOOTER */
 .chat-container footer {
+  padding: 12px 16px;
+  background: #eee;
   display: flex;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-top: 1px solid #ccc;
+  gap: 8px;
+  align-items: center;
 }
 .chat-container footer input {
   flex-grow: 1;
-  padding: 0.5rem;
+  padding: 8px 12px;
   font-size: 1rem;
+  border: none;
+  border-radius: 20px;
+  outline: none;
+  background: #fff;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .chat-container footer button {
-  background: #ff6f00;
-  color: white;
+  background: #007bff;
+  color: #fff;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 8px 16px;
   font-size: 1rem;
+  border-radius: 20px;
   cursor: pointer;
-  transition: 0.3s;
+  transition: background 0.3s;
 }
 .chat-container footer button:hover {
-  background: #ff9100;
+  background: #0056b3;
 }
 </style>
