@@ -2,7 +2,9 @@
   <div id="app">
     <NavBar />
     <div class="content">
-      <router-view></router-view>
+      <transition name="fade" mode="out-in">
+        <router-view :key="$route.fullPath"></router-view>
+      </transition>
     </div>
   </div>
 </template>
@@ -26,8 +28,23 @@ export default {
 
 /* 🌟 Content Adjusted for Sidebar */
 .content {
-  margin-left: 80px; /* Same width as sidebar */
   flex-grow: 1;
   background: #f5f5f5;
+}
+
+/* Page transition styles */
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-to,
+.fade-leave-from {
+  opacity: 1;
 }
 </style>

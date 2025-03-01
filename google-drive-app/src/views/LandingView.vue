@@ -7,45 +7,48 @@
     <button v-if="!isAuthenticated" class="auth-btn" @click="authenticate">
       🔑 Connect to Google Drive
     </button>
+    <!-- If authenticated, show Google Drive icon -->
+    <button v-else class="auth-btn" @click="goToDashboard">
+      <i class="fab fa-google-drive"></i> Access your files
+    </button>
   </div>
 </template>
 
 <script>
-import axios from "axios";
 import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import axios from "axios";
 
 export default {
   setup() {
-    const router = useRouter();
     const isAuthenticated = ref(false);
 
+    // Check the authentication status when component mounts
     onMounted(async () => {
       try {
         const { data } = await axios.get("http://localhost:3000/auth/status", {
           withCredentials: true,
         });
         isAuthenticated.value = data.authenticated;
-
-        if (isAuthenticated.value) {
-          router.push("/dashboard");
-        }
       } catch (error) {
-        console.error("Error checking authentication:", error);
+        console.error("Error checking auth:", error);
       }
     });
 
     const authenticate = () => {
       window.location.href = "http://localhost:3000/auth/google";
     };
+// For authenticated users: redirect to /dashboard
+    const goToDashboard = () => {
+      window.location.href = "/dashboard";
+    };
 
-    return { isAuthenticated, authenticate };
+    return { isAuthenticated, authenticate, goToDashboard };
   },
 };
 </script>
 
 <style>
-/* 🌟 Full-screen landing page */
+/* Styles remain unchanged */
 .landing {
   height: 100%;
   width: 100%;

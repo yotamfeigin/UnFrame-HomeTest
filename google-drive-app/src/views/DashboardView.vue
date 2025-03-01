@@ -2,8 +2,19 @@
   <div class="dashboard">
     <h2>Your Google Drive Files</h2>
 
-    <!-- FILE LIST -->
-    <div class="file-list">
+    <!-- Loading Logo -->
+    <div v-if="isLoading" class="loading-container">
+      <img src="../assets/loading.gif" alt="Loading..." />
+    </div>
+
+    <!-- FILE LIST with fade-in transition -->
+    <transition-group
+      name="file-fade"
+      tag="div"
+      class="file-list"
+      v-if="!isLoading"
+      appear
+    >
       <div v-for="file in files" :key="file.id" class="file-card">
         <div class="file-details">
           <h3>{{ file.name }}</h3>
@@ -16,12 +27,10 @@
           <button @click="deleteFile(file.id)">🗑 Delete</button>
         </div>
       </div>
-    </div>
+    </transition-group>
 
     <!-- FLOATING CHAT BUTTON -->
-    <div class="chat-fab" @click="toggleChat">
-      💬
-    </div>
+    <div class="chat-fab" @click="toggleChat">💬</div>
 
     <!-- SLIDE TRANSITION FOR CHAT -->
     <transition name="slide">
@@ -54,21 +63,46 @@
 
 <script>
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import axios from "axios";
 
 export default {
   setup() {
-    // FILES
+    const router = useRouter();
     const files = ref([]);
+    const chatOpen = ref(false);
+    const messages = ref([]);
+    const newMessage = ref("");
+    const isLoading = ref(true);
 
     onMounted(async () => {
       try {
-        const { data } = await axios.get("http://localhost:3000/files", {
+        // 1) Check if user is authenticated
+        const { data } = await axios.get("http://localhost:3000/auth/status", {
           withCredentials: true,
         });
-        files.value = data;
+        if (!data.authenticated) {
+          return router.push("/");
+        }
+
+        // 2) Fetch files if authenticated
+        const fileRes = await axios.get("http://localhost:3000/files", {
+          withCredentials: true,
+        });
+        const fetchedFiles = fileRes.data;
+
+        // Delay updating the files so the transition-group can animate the entrance
+        setTimeout(() => {
+          files.value = fetchedFiles;
+        }, 50);
       } catch (error) {
-        console.error("Error fetching files:", error);
+        console.error("Error checking auth or fetching files:", error);
+        router.push("/");
+      } finally {
+        // Small delay before hiding the loader
+        setTimeout(() => {
+          isLoading.value = false;
+        }, 100);
       }
     });
 
@@ -82,7 +116,7 @@ export default {
 
     const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString();
 
-    // CRUD
+    // CRUD methods
     const viewFile = (fileId) => {
       window.open(`https://drive.google.com/file/d/${fileId}/view`, "_blank");
     };
@@ -119,17 +153,12 @@ export default {
     };
 
     // AI CHAT
-    const chatOpen = ref(false);
-    const messages = ref([]);
-    const newMessage = ref("");
-
     const toggleChat = () => {
       chatOpen.value = !chatOpen.value;
     };
 
     const sendMessage = async () => {
       if (!newMessage.value.trim()) return;
-      // Add user message
       messages.value.push({ role: "user", content: newMessage.value });
       const userQuery = newMessage.value;
       newMessage.value = "";
@@ -140,7 +169,6 @@ export default {
           { prompt: userQuery },
           { withCredentials: true }
         );
-        // Add AI response
         messages.value.push({ role: "ai", content: data.response });
       } catch (error) {
         console.error("Chat error:", error);
@@ -153,14 +181,15 @@ export default {
 
     return {
       files,
+      chatOpen,
+      messages,
+      newMessage,
+      isLoading,
       formatSize,
       formatDate,
       viewFile,
       editFile,
       deleteFile,
-      chatOpen,
-      messages,
-      newMessage,
       toggleChat,
       sendMessage,
     };
@@ -169,7 +198,7 @@ export default {
 </script>
 
 <style>
-/* 🔹 MAIN DASHBOARD STYLES */
+/* MAIN DASHBOARD STYLES */
 .dashboard {
   padding: 2rem;
   text-align: center;
@@ -177,7 +206,19 @@ export default {
   background: #f5f5f5;
 }
 
-/* 🔹 FILE GRID (3 in a row) */
+/* Loading Container */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+.loading-container img {
+  width: 80px; /* Smaller loading GIF */
+  height: auto;
+}
+
+/* FILE GRID (3 in a row) */
 .file-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -186,7 +227,7 @@ export default {
   gap: 1rem;
 }
 
-/* 🔹 FILE CARDS */
+/* FILE CARDS */
 .file-card {
   background: white;
   padding: 1.5rem;
@@ -241,8 +282,34 @@ export default {
 .file-actions button:nth-child(3):hover {
   background: #c82333;
 }
+/* FILE FADE-IN APPEAR TRANSITION */
+.file-fade-appear-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.file-fade-appear-active {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.file-fade-appear-to {
+  opacity: 1;
+  transform: translateY(0);
+}
 
-/* 🔹 FAB BUTTON */
+/* Keep the regular enter transitions if needed */
+.file-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.file-fade-enter-active {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.file-fade-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+
+/* FAB BUTTON */
 .chat-fab {
   position: fixed;
   bottom: 20px;
@@ -257,16 +324,14 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transition: 0.3s;
 }
 .chat-fab:hover {
   transform: scale(1.1);
 }
 
-/* 🔹 SLIDE TRANSITION */
-
-/* The standard transition classes for 'slide' */
+/* SLIDE TRANSITION for Chat */
 .slide-enter-from {
   transform: translateX(100%);
 }
@@ -276,7 +341,6 @@ export default {
 .slide-enter-active {
   transition: transform 0.3s ease;
 }
-
 .slide-leave-from {
   transform: translateX(0);
 }
@@ -287,7 +351,7 @@ export default {
   transition: transform 0.3s ease;
 }
 
-/* 🔹 CHAT CONTAINER */
+/* CHAT CONTAINER */
 .chat-container {
   position: fixed;
   top: 0;
@@ -295,12 +359,12 @@ export default {
   width: 320px;
   height: 100vh;
   background: #fff;
-  box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
 }
 
-/* 🔹 CHAT HEADER */
+/* CHAT HEADER */
 .chat-container header {
   background: #ff9100;
   color: #fff;
@@ -320,7 +384,7 @@ export default {
   cursor: pointer;
 }
 
-/* 🔹 CHAT MESSAGES */
+/* CHAT MESSAGES */
 .chat-messages {
   flex-grow: 1;
   padding: 1rem;
@@ -345,7 +409,7 @@ export default {
   text-align: left;
 }
 
-/* 🔹 CHAT FOOTER */
+/* CHAT FOOTER */
 .chat-container footer {
   display: flex;
   gap: 0.5rem;
